@@ -1,0 +1,84 @@
+email_clusters: |-
+  count by (_id,email_domain)(
+  subscription_labels{email_domain!~"redhat.com|(.*\\.|^)ibm.com"} offset 1s
+  )
+
+olm_operators: |-
+  count by (_id,name,version) (csv_succeeded{name=~"packageserver.*"}>0 offset 1s )
+
+olm_retired: |-
+  count by (_id,name,version) (csv_abnormal{name=~"packageserver.*", reason=~"Replaced|BeingReplaced"} offset 1s )
+
+csv_operators: |- # Dangerous query -- slow!
+  count by (_id,name) (csv_succeeded{name!~"|packageserver.*"}>0 offset 1s )
+
+retired_operators: |-
+  count by (_id,name) (csv_abnormal{reason=~"Replaced|BeingReplaced"} offset 1s )
+
+clusters_cpu: |-
+  sum by (_id) (cluster:cpu_usage_cores:sum offset 1s )
+
+clusters_nodes: |-
+  sum by (_id) (cluster:node_instance_type_count:sum offset 1s )
+
+clusters_ram: |-
+  sum by (_id) (cluster:memory_usage_bytes:sum offset 1s ) / (2^30)
+
+workload_cpu: |-
+  sum by (_id) (workload:cpu_usage_cores:sum offset 1s )
+
+workload_ram: |- 
+  sum by (_id) (workload:memory_usage_bytes:sum offset 1s ) / (2^30)
+
+#avg_cpu_olm_clusters: |-
+#  avg_over_time(
+#  (
+#  avg(
+#  cluster:capacity_cpu_cores:sum + on (_id) group_left(name) (0 * topk by (_id) (1, csv_succeeded{name=~"packageserver.*"}))
+#  )
+#  )[1h:30m]
+#  )
+
+#avg_node_olm_clusters: |-
+#  avg_over_time(
+#  (
+#  avg(
+#  cluster:node_instance_type_count:sum + on (_id) group_left(name) (0 * topk by (_id) (1, csv_succeeded{name=~"packageserver.*"}))
+#  )
+#  )[1h:30m]
+#  )
+
+#avg_ram_olm_clusters: |-
+#  avg_over_time(
+#  (
+#  avg(
+#  cluster:memory_usage_bytes:sum + on (_id) group_left(name) (0 * topk by (_id) (1, csv_succeeded{name=~"packageserver.*"}))
+#  ) / (2^30)
+#  )[1h:30m]
+#  )
+
+#avg_cpu_noOLM_clusters: |-
+#  avg_over_time(
+#  (
+#  avg(
+#  cluster:capacity_cpu_cores:sum unless
+#  count by (_id,prometheus,receive,tenant_id)
+#  (
+#  topk by (_id) (1,csv_succeeded{name=~"packageserver.*"})
+#  )
+#  )
+#  )[1h:30m]
+#  )
+
+#avg_node_noOLM_clusters: |-
+#  avg_over_time(
+#  (
+#  avg(
+#  cluster:node_instance_type_count:sum unless
+#  count by (_id,prometheus,receive,tenant_id)
+#  (
+#  topk by (_id) (1,csv_succeeded{name=~"packageserver.*"})
+#  )
+#  )
+#  )[1h:30m]
+# )

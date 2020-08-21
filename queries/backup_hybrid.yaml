@@ -1,0 +1,114 @@
+total_customers: |-
+  count by (email_domain)(
+  subscription_labels{email_domain!~"redhat.com|(.*\\.|^)ibm.com"})
+  )
+
+olm_customers: |-
+  count by (email_domain)(
+  (
+  subscription_labels{email_domain!~"redhat.com|(.*\\.|^)ibm.com"}
+  + on(_id) group_left() (0 * topk by (_id) (1, csv_succeeded{name=~"packageserver.*"})
+  + on(_id) group_left() (0*topk by (_id) (1,csv_succeeded{name!~"|packageserver.*"}>0)))
+  ))
+  )
+
+unique_operators: |-
+  count by (email_domain,name)(
+  (
+  (
+  (count by (_id,name) (csv_succeeded{name!~"|packageserver.*"}>0)) unless
+  (count by (_id,name) (csv_abnormal{reason=~"Replaced|BeingReplaced"}))
+  )
+  + on (_id) group_left(email_domain)
+  (
+   0 * topk by (_id) (1,subscription_labels{email_domain!~"redhat.com|(.*\\.|^)ibm.com"} ) 
+   + on(_id) group_left(_blah) (0 * topk by (_id) (1, csv_succeeded{name=~"packageserver.*"}))
+   ))
+  )
+
+olm_clusters: |-
+  count by (_id) (
+  (
+  (count by (_id,name) (csv_succeeded{name=~"packageserver.*"}>0)) unless
+  (count by (_id,name) (csv_abnormal{reason=~"Replaced|BeingReplaced"}))
+  )
+  )
+
+optional_clusters: |-
+  count by (_id) (
+  (
+  (count by (_id,name) (csv_succeeded{name!~"|packageserver.*"}>0)) unless
+  (count by (_id,name) (csv_abnormal{reason=~"Replaced|BeingReplaced"}))
+  + on(_id) group_left() (0 * topk by (_id) (1, csv_succeeded{name=~"packageserver.*"}))
+  )
+  )
+
+olm_versions: |-
+  count by (version) (
+  (
+  (count by (_id,version) (csv_succeeded{name=~"packageserver.*"}>0) unless
+  count by (_id,version) (csv_abnormal{name=~"packageserver.*", reason="Replaced|BeingReplaced"}))
+  )
+  )
+
+avg_cpu_olm_clusters: |-
+  avg(
+  cluster:capacity_cpu_cores:sum + on (_id) group_left(name) (0 * topk by (_id) (1, csv_succeeded{name=~"packageserver.*"}))
+  )
+
+avg_node_olm_clusters: |-
+  avg_over_time(
+  (
+  avg(
+  cluster:node_instance_type_count:sum + on (_id) group_left(name) (0 * topk by (_id) (1, csv_succeeded{name=~"packageserver.*"}))
+  )
+  )[1h:30m]
+  )
+
+avg_ram_olm_clusters: |-
+  avg_over_time(
+  (
+  avg(
+  cluster:memory_usage_bytes:sum + on (_id) group_left(name) (0 * topk by (_id) (1, csv_succeeded{name=~"packageserver.*"}))
+  ) / (2^30)
+  )[1h:30m]
+  )
+
+avg_cpu_noOLM_clusters: |-
+  avg_over_time(
+  (
+  avg(
+  cluster:capacity_cpu_cores:sum unless
+  count by (_id,prometheus,receive,tenant_id)
+  (
+  topk by (_id) (1,csv_succeeded{name=~"packageserver.*"})
+  )
+  )
+  )[1h:30m]
+  )
+
+avg_node_noOLM_clusters: |-
+  avg_over_time(
+  (
+  avg(
+  cluster:node_instance_type_count:sum unless
+  count by (_id,prometheus,receive,tenant_id)
+  (
+  topk by (_id) (1,csv_succeeded{name=~"packageserver.*"})
+  )
+  )
+  )[1h:30m]
+  )
+
+avg_ram_noOLM_clusters: |-
+  avg_over_time(
+  (
+  avg(
+  cluster:memory_usage_bytes:sum unless
+  count by (_id,prometheus,receive,tenant_id)
+  (
+  topk by (_id) (1,csv_succeeded{name=~"packageserver.*"})
+  )
+  ) / (2^30)
+  )[1h:30m]
+  )
